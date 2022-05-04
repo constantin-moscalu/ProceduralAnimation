@@ -7,50 +7,65 @@ namespace _Project.Scripts.ProceduralWalking
 		[SerializeField] private LayerMask layerMask;
 		[SerializeField] private Vector3 positionOffset;
 
-		private bool isActive;
-		private Vector3 nextPosition;
-		private Vector3 lastPosition;
+		private Vector3 nextPosition, lastPosition;
+		private Vector3 nextNormal, lastNormal;
 		private FeetSynchronizer feetSynchronizer;
+		private AnimationCurve stepCurve;
+		private float stepHeight;
 
-		public bool IsActive
-		{
-			get => isActive;
-			set => isActive = value;
-		}
+		public bool IsActive { get; private set; }
 
 		private void Awake()
 		{
 			lastPosition = nextPosition = transform.position - positionOffset;
-			
+
 			Ray ray = new Ray(transform.position, Vector3.down);
-			if (Physics.Raycast(ray, out RaycastHit hit, 10, layerMask)) 
+			if (Physics.Raycast(ray, out RaycastHit hit, 10, layerMask))
+			{
 				lastPosition = nextPosition = hit.point;
+				lastNormal = nextNormal = hit.normal;
+			}
 		}
 
-		private void OnDestroy() => 
+		private void OnDestroy() =>
 			feetSynchronizer.onStepProgress -= UpdateStepPosition;
 
-		public void Initialize(FeetSynchronizer feetSynchronizer, bool newState)
+		private void Update()
+		{
+			if (IsActive)
+				return;
+
+			transform.position = nextPosition + positionOffset;
+		}
+
+		public void Initialize(FeetSynchronizer feetSynchronizer, AnimationCurve stepCurve, float stepHeight, bool newState)
 		{
 			this.feetSynchronizer = feetSynchronizer;
-			isActive = newState;
+			this.stepCurve = stepCurve;
+			this.stepHeight = stepHeight;
+			IsActive = newState;
+			
 			feetSynchronizer.onStepProgress += UpdateStepPosition;
 		}
 
 		private void UpdateStepPosition(float stepProgress)
 		{
-			if(!isActive)
+			if (!IsActive)
 				return;
 
 			Vector3 lerpPosition = Vector3.Lerp(lastPosition, nextPosition, stepProgress);
-			transform.position = lerpPosition + positionOffset;
+			Vector3 verticalOffset = new Vector3(0, stepCurve.Evaluate(stepProgress) * stepHeight, 0);
+			transform.position = lerpPosition + verticalOffset + positionOffset;
+
+			Vector3 currentNormal = Vector3.Lerp(lastNormal, nextNormal, stepProgress);
+			transform.forward -= Vector3.Dot(transform.forward, currentNormal) * currentNormal;
 		}
 
 		public void Switch(Vector3 nextStep)
 		{
-			isActive = !isActive;
+			IsActive = !IsActive;
 
-			if (!isActive)
+			if (!IsActive)
 				return;
 
 			Ray ray = new Ray(nextStep, Vector3.down);
@@ -58,7 +73,25 @@ namespace _Project.Scripts.ProceduralWalking
 			{
 				lastPosition = nextPosition;
 				nextPosition = hit.point;
+
+				lastNormal = nextNormal;
+				nextNormal = hit.normal;
 			}
+		}
+
+		private void OnDrawGizmos()
+		{
+			if (!IsActive)
+				return;
+
+			DrawGizmo(lastPosition, .1f, Color.yellow);
+			DrawGizmo(nextPosition, .1f, Color.green);
+		}
+
+		private void DrawGizmo(Vector3 position, float radius, Color color)
+		{
+			Gizmos.color = color;
+			Gizmos.DrawSphere(position, radius);
 		}
 	}
 }

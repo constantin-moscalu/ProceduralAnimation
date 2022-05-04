@@ -7,8 +7,13 @@ namespace _Project.Scripts.ProceduralWalking
 	public class FeetSynchronizer : MonoBehaviour
 	{
 		[SerializeField] private float footOffset;
-		[SerializeField] private float stepLength;
 		[SerializeField] private float stepProgressSpeed;
+		[SerializeField] private float checkHeight;
+		
+		[HorizontalLine]
+		[SerializeField] private float stepLength;
+		[SerializeField] private float stepHeight;
+		[SerializeField] private AnimationCurve stepCurve;
 
 		[HorizontalLine]
 		[SerializeField] private ProceduralFoot leftFoot;
@@ -21,8 +26,9 @@ namespace _Project.Scripts.ProceduralWalking
 
 		private void Start()
 		{
-			leftFoot.Initialize(this, false);
-			rightFoot.Initialize(this, true);
+			leftFoot.Initialize(this, stepCurve, stepHeight, true);
+			rightFoot.Initialize(this, stepCurve, stepHeight, false);
+			SwitchFeet();
 		}
 
 		private void Update()
@@ -43,7 +49,7 @@ namespace _Project.Scripts.ProceduralWalking
 
 		private void SwitchFeet()
 		{
-			Vector3 forwardWithOffset = transform.position + transform.forward * stepLength;
+			Vector3 forwardWithOffset = transform.position + transform.forward * stepLength + Vector3.up * checkHeight;
 
 			leftFoot.Switch(forwardWithOffset + transform.right * -footOffset);
 			rightFoot.Switch(forwardWithOffset + transform.right * footOffset);
